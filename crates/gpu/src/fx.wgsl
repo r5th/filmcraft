@@ -407,9 +407,9 @@ fn color_op(op: u32, c: vec3<f32>) -> vec3<f32> {
             return dec(o + (e - o) * blend);
         }
         case OP_POSTERIZE: {
+            // Same as the CPU path: level = min(floor(v * L), L - 1), out = level / (L - 1).
             let n = u.p0.x;
-            let e = enc(c) * n;
-            return dec(vec3(round_away(e.x), round_away(e.y), round_away(e.z)) / n);
+            return dec(min(floor(enc(c) * (n + 1.0)), vec3(n)) / n);
         }
         case OP_ASC_CDL: {
             let e = enc(c);

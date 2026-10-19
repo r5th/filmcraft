@@ -785,7 +785,9 @@ impl FxOp {
             }
             FxOp::Posterize { n } => {
                 let n = *n;
-                img.map_rgb(|c, _, _| dec(enc(c).map(|v| (v * n).round() / n)));
+                // Premiere 26.5.2 Posterize: level k = min(floor(v * L), L - 1), out = k / (L - 1), with
+                // n = L - 1. Exact on every pixel at L = 4, 6 and 16 (round() gave 31-45 dB).
+                img.map_rgb(|c, _, _| dec(enc(c).map(|v| (v * (n + 1.0)).floor().min(n) / n)));
             }
             FxOp::Gaussian { rx, ry, repeat } => crate::effects::box_blur(img, rx, ry, *repeat),
             FxOp::DirectionalBlur { dx, dy, steps } => crate::effects::directional_taps(img, *dx, *dy, *steps as usize),
