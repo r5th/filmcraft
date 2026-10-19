@@ -238,6 +238,14 @@ pub const GPU_EFFECTS: &[&str] = &[
 ];
 
 /// `Image::transformed` without the mip path: the destination rectangle it writes and the inverse.
+/// Brightness & Contrast slope about mid-grey (encoded space). Measured against Premiere 26.5.2:
+/// a negative Contrast c gives 1 + c/100 (slope 0.60 at -40, exact match), a positive one gives
+/// 1 / (1 - c/100) (fitted slopes 1.25, 1.667 and 5.00 at +20, +40 and +80; the old 1 + c/100
+/// gave 54, 42 and 31 dB). The denominator is floored so +100 stays finite.
+fn contrast_slope(c: f32) -> f32 {
+    if c < 0.0 { 1.0 + c / 100.0 } else { 1.0 / (1.0 - c / 100.0).max(0.01) }
+}
+
 fn resample(w: usize, h: usize, m: &Affine, opacity: f32) -> Resample {
     let Some(inv) = m.inverse() else { return Resample { inv: None, rect: [0; 4], opacity } };
     let b = m.bounds(&filmcraft_geom::Rect::new(0.0, 0.0, w as f64, h as f64));
@@ -266,7 +274,7 @@ impl FxOp {
             return None;
         }
         Some(match e.effect.as_str() {
-            "brightness_contrast" => FxOp::BrightnessContrast { br: f(e, "brightness", cx) / 100.0 * 0.4, co: 1.0 + f(e, "contrast", cx) / 100.0 },
+            "brightness_contrast" => FxOp::BrightnessContrast { br: f(e, "brightness", cx) / 100.0 * 0.4, co: contrast_slope(f(e, "contrast", cx)) },
             "proc_amp" => FxOp::ProcAmp {
                 br: f(e, "brightness", cx) / 100.0 * 0.4,
                 co: f(e, "contrast", cx) / 100.0,
