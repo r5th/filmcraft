@@ -9,7 +9,7 @@
 //! op to the GPU when [`FxOp::gpu_ok`] says the shader covers it (finite numbers, no minifying
 //! resample), otherwise the clip is rendered on the CPU as before.
 
-use filmcraft_color::{hsl_to_rgb, linear_to_srgb, luma709, rgb_to_hsl};
+use filmcraft_color::{hsl_to_rgb, linear_to_srgb, luma601, luma709, rgb_to_hsl};
 use filmcraft_geom::Affine;
 use filmcraft_project::EffectInstance;
 use rayon::prelude::*;
@@ -334,7 +334,9 @@ impl FxOp {
             "invert" => FxOp::Invert { channel: choice(e, "channel"), blend: f(e, "blend", cx) / 100.0 },
             "posterize" => FxOp::Posterize { n: f(e, "levels", cx).max(2.0) - 1.0 },
             "gaussian_blur" | "gaussian_blur_legacy" => {
-                let r = f(e, "blurriness", cx) * cx.px_scale * 0.5;
+                // Premiere 26.5.2's Gaussian Blur (Legacy) spreads an edge with sigma = 0.28 x
+                // Blurriness pixels (measured from Blurriness 2 to 80 on rendered edges).
+                let r = f(e, "blurriness", cx) * cx.px_scale * 0.28;
                 let dims = choice(e, "dimensions");
                 let (rx, ry) = gaussian_boxes(w, h, if dims == 2 { 0.0 } else { r }, if dims == 1 { 0.0 } else { r });
                 FxOp::Gaussian { rx, ry, repeat: b(e, "repeat_edge") }
@@ -658,15 +660,16 @@ impl FxOp {
             FxOp::Tint { black: bl, white: wh, amount } => {
                 let amt = *amount;
                 img.map_rgb(|c, _, _| {
-                    let l = linear_to_srgb(luma709(c[0], c[1], c[2]).max(0.0));
-                    let t = [bl[0] + (wh[0] - bl[0]) * l, bl[1] + (wh[1] - bl[1]) * l, bl[2] + (wh[2] - bl[2]) * l];
                     let e = enc(c);
+                    let l = luma601(e[0], e[1], e[2]);
+                    let t = [bl[0] + (wh[0] - bl[0]) * l, bl[1] + (wh[1] - bl[1]) * l, bl[2] + (wh[2] - bl[2]) * l];
                     dec([e[0] + (t[0] - e[0]) * amt, e[1] + (t[1] - e[1]) * amt, e[2] + (t[2] - e[2]) * amt])
                 });
             }
             FxOp::BlackWhite => img.map_rgb(|c, _, _| {
-                let l = luma709(c[0], c[1], c[2]);
-                [l, l, l]
+                let e = enc(c);
+                let l = luma601(e[0], e[1], e[2]);
+                dec([l, l, l])
             }),
             FxOp::ColorBalance { sh, md, hi, preserve } => {
                 let preserve = *preserve;
