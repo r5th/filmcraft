@@ -949,7 +949,7 @@ pub(super) fn defs() -> Vec<EffectDef> {
             "Gaussian Blur (Legacy)",
             LEGACY,
             vec![
-                fs("blurriness", "Blurriness", 0.0, (0.0, 3000.0), (0.0, 100.0), "", 1),
+                fs("blurriness", "Blurriness", 25.0, (0.0, 3000.0), (0.0, 100.0), "", 1),
                 ch("dimensions", "Blur Dimensions", &["Horizontal and Vertical", "Horizontal", "Vertical"], 0),
             ],
         ),
