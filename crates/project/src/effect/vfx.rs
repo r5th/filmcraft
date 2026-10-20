@@ -68,6 +68,8 @@ pub fn auto_point(effect: &str, param: &str) -> Option<(f64, f64)> {
         ("checkerboard", "anchor") => (0.0, 0.0),
         ("write_on", "brush") => (0.5, 0.5),
         ("volumetric_rays", "center") => (0.5, 0.25),
+        // Premiere default Reflection Center is the right-middle edge (measured: default Mirror = identity).
+        ("mirror", "center") => (1.0, 0.5),
         _ => return None,
     })
 }
